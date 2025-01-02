@@ -13,7 +13,8 @@ headers = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/
 '''
 TODO:
     Still need to investigate why the 404 requests are excepting instead of returning 404
-    Add successful URL to dictionary to avoid multiple players with the same name problem
+    Probably just try catch it
+    
 
 Done:
     If "St.", combine "St." with the next word
@@ -22,6 +23,7 @@ Done:
     Problem: (A-Z).(A-Z). is sometimes "(A-Z)." or "(A-Z)(A-Z)
     hyphen(-) should be removed
     apostrophe(') should be removed
+    Add successful URL to dictionary to avoid multiple players with the same name problem
     
 '''
 checkedNames = {}

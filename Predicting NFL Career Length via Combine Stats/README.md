@@ -7,5 +7,7 @@ The headers: Year,Name,College,POS,Height (in),Weight (lbs),Wonderlic,40 Yard,Be
 
 TODO:
     Explore the dataset to see duplicates, data distributions, number of unique schools, etc.
+    Remove players who have not yet retired. This can be done via checking if they have a 2024 season or if they have a hall of fame monitor
     
 The first step is to find all the available data regarding the length of as many of the players in the original NFL combine dataset
+
