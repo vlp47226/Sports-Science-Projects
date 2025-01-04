@@ -70,8 +70,28 @@ def get_player_career_length(player_name):
         #with open(f'{player_name}{checkOtherNumbers}.html', "w") as file:
         #    file.write(str(soup))
         #print(soup)
-        print(soup.find(id = ["meta"])) #_class = "stats_pullout"))
+        meta_data = soup.find(id = "meta")
+        #print(soup.find(id = ["meta"])) #_class = "stats_pullout"))
 
+        #Get Meta Data that we dont already have ie High school and High school state,
+        i = 0 
+        result = {}
+        current_key=None
+        for link in meta_data.find_all('p'):
+            #print(link.text.strip())
+            current_key = None
+            for line in link.text.splitlines():
+                line = line.strip()  # Remove leading and trailing whitespace
+                if ':' in line:  # If the line contains a colon, it's a new key
+                    current_key, value = map(str.strip, line.split(':', 1))
+                    # Add the key with the value if the value is not empty
+                    if value:
+                        result[current_key] = value
+                    else:
+                        result[current_key] = ""  # Placeholder for now
+                elif current_key:  # If there's no colon but we have a current key, it's the value
+                    result[current_key] = result[current_key] + line  # Append the value
+        print(result)
         years = [int(link.text) for link in soup.find_all('a') if link.text.isdigit()]
         if years:
             return len(set(years))  # Count unique years
