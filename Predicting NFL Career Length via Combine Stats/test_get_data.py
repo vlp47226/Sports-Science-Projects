@@ -1,4 +1,6 @@
+import calendar
 import re
+import stat
 from time import sleep
 from urllib import response
 import pandas as pd
@@ -10,7 +12,6 @@ tqdm.pandas()
 stem = "https://www.pro-football-reference.com/players/"
 headers = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'}
 checkedNames = {}
-
 def get_player_career_length(player_name):
     try:
         sleep(4) # Wait 4 seconds between requests
@@ -92,9 +93,71 @@ def get_player_career_length(player_name):
                 elif current_key:  # If there's no colon but we have a current key, it's the value
                     result[current_key] = result[current_key] + line  # Append the value
         print(result)
-        years = [int(link.text) for link in soup.find_all('a') if link.text.isdigit()]
+        # Parse born value to get the year, month, and day
+
+        born = result.get("Born")
+        space_split = born.split()
+        month = space_split[0]
+        month_num = list(calendar.month_name).index(month)
+        day = space_split[1][:-1]  
+        year = space_split[2][:-2]
+        city = space_split[3][:-1]
+        state = space_split[4]
+        print(f'{player_name} was born on {month_num}/{day}/{year} in {city}, {state}')
+        # Get highschool and state location
+        highschool = result.get("High School")
+        highschool = highschool.split("(")
+        highschool_name = highschool[0].strip()
+        highschool_state = highschool[1][:-1]
+        print(f'{player_name} went to {highschool_name} in {highschool_state}')
+
+        # Get Weighted Career AV
+        career_AV = result.get("Weighted Career AV (100-95-...)").split(" ")[0]
+        print(f'{player_name} has a weighted career AV of {career_AV}')
+
+        # Get Career start year
+        draft = result.get("Draft")
+        match = re.search(r'\b\d{4}\b', draft)
+        if match:
+            draft_year = match.group()
+            print(f'{player_name} was drafted in {draft_year}')
+
+        stat_pullout = soup.find(id="div_faq").find_all("p")
+        #print(stat_pullout)
+        for link in stat_pullout:
+            #print(link.text)
+            if "games" in link.text:
+                games = re.findall(r'\d+', link.text)
+                print(f'{player_name} played {games[0]} games')
+            elif "last played" in link.text:
+                last_played = re.findall(r'\d+', link.text)
+                print(f'{player_name} last played in {last_played[0]}')
+
+        
+        # Get number of years active
+        years = int(last_played[0]) - int(draft_year) + 1
+        print(f'{player_name} played for {years} years')
+        # Get number of games played
+
+        output_dict = {
+            "Player": player_name,
+            "Born": born,
+            "Birth Month": month_num,
+            "Birth Day": day,
+            "Birth Year": year,
+            "City": city,
+            "State": state,
+            "High School": highschool_name,
+            "High School State": highschool_state,
+            "Weighted Career AV": career_AV,
+            "Years Active": years,
+            "Games Played": games[0],
+            "Last Played": last_played[0],
+
+
+        }
         if years:
-            return len(set(years))  # Count unique years
+            return years  # Count unique years
     except Exception as e:
         return None
 
