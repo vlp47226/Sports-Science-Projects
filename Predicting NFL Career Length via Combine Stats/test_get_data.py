@@ -12,8 +12,28 @@ tqdm.pandas()
 stem = "https://www.pro-football-reference.com/players/"
 headers = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'}
 checkedNames = {}
-def get_player_career_length(player_name):
-    try:
+
+def check_playerurl_with_year(url, year):
+    '''
+        Check player combine year from csv to either draft year in their bio or nfl/pro day year
+        If they are different, then the url is wrong   
+    '''
+    response = requests.get(url, headers=headers)
+    if response.status_code == 404:
+        return False
+    soup = BeautifulSoup(response.content, 'html.parser')
+    # check
+    meta_data = soup.find(id = "tfooter_combine")
+    born = meta_data.find("a").text
+    print()
+    born = born.split()
+    year_born = born[-1]
+    if year_born == year:
+        return True
+    return False
+
+
+def get_player_career_length(year,player_name):
         sleep(4) # Wait 4 seconds between requests
         player_name = player_name.replace("-", "").replace("'", "") # Replace hyphen with space
         if "St." in player_name:
@@ -52,6 +72,7 @@ def get_player_career_length(player_name):
             print("Used URL")
         checkOtherNumbers = 0
         """If the player's URL doesn't exist, try other numbers"""
+        #check if players url matches the year in the csv, if not, then the url is wrong
         while response.status_code == 404:
             newNum = str(checkOtherNumbers)
             newNum = "0"+newNum if newNum < 10 else newNum
@@ -92,7 +113,7 @@ def get_player_career_length(player_name):
                         result[current_key] = ""  # Placeholder for now
                 elif current_key:  # If there's no colon but we have a current key, it's the value
                     result[current_key] = result[current_key] + line  # Append the value
-        print(result)
+        #print(result)
         # Parse born value to get the year, month, and day
 
         born = result.get("Born")
@@ -112,11 +133,11 @@ def get_player_career_length(player_name):
         print(f'{player_name} went to {highschool_name} in {highschool_state}')
 
         # Get Weighted Career AV
-        career_AV = result.get("Weighted Career AV (100-95-...)").split(" ")[0]
+        career_AV = result.get("Weighted Career AV (100-95-...)", "0 0").split(" ")[0]
         print(f'{player_name} has a weighted career AV of {career_AV}')
 
         # Get Career start year
-        draft = result.get("Draft")
+        draft = result.get("Draft", "0000")
         match = re.search(r'\b\d{4}\b', draft)
         if match:
             draft_year = match.group()
@@ -124,6 +145,7 @@ def get_player_career_length(player_name):
 
         stat_pullout = soup.find(id="div_faq").find_all("p")
         #print(stat_pullout)
+        last_played = None
         for link in stat_pullout:
             #print(link.text)
             if "games" in link.text:
@@ -132,7 +154,12 @@ def get_player_career_length(player_name):
             elif "last played" in link.text:
                 last_played = re.findall(r'\d+', link.text)
                 print(f'{player_name} last played in {last_played[0]}')
-
+        if games == None:
+            games = 0
+            last_played = 0
+        elif last_played == None:
+            return None
+        
         
         # Get number of years active
         years = int(last_played[0]) - int(draft_year) + 1
@@ -140,7 +167,6 @@ def get_player_career_length(player_name):
         # Get number of games played
 
         output_dict = {
-            "Player": player_name,
             "Born": born,
             "Birth Month": month_num,
             "Birth Day": day,
@@ -153,17 +179,12 @@ def get_player_career_length(player_name):
             "Years Active": years,
             "Games Played": games[0],
             "Last Played": last_played[0],
-
-
         }
-        if years:
-            return years  # Count unique years
-    except Exception as e:
-        return None
+        return output_dict
 
 # Add career length to your dataset
 
 player_name = "Brian Westbrook"
-
-lengthOfCareer = get_player_career_length(player_name)
-print(player_name+": ", lengthOfCareer)
+year = 2002
+career_dict = get_player_career_length(year, player_name)
+print(player_name+": ", career_dict)
