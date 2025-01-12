@@ -6,6 +6,7 @@ from urllib import response
 import pandas as pd
 import requests
 from bs4 import BeautifulSoup
+import soupsieve
 from tqdm import tqdm
 tqdm.pandas()
 # Load your CSV
@@ -15,21 +16,70 @@ checkedNames = {}
 
 def check_playerurl_with_year(url, year):
     '''
-        Check player combine year from csv to either draft year in their bio or nfl/pro day year
-        If they are different, then the url is wrong   
+        Check player combine year from csv to:
+        1) draft year in their bio
+        2) nfl/pro day year
+        If year input variable is different then the first of the two to be able to get, then the url is wrong   
     '''
     response = requests.get(url, headers=headers)
     if response.status_code == 404:
         return False
     soup = BeautifulSoup(response.content, 'html.parser')
     # check
-    meta_data = soup.find(id = "tfooter_combine")
-    born = meta_data.find("a").text
-    print()
-    born = born.split()
-    year_born = born[-1]
-    if year_born == year:
+    meta_data = soup.find(id = "meta")
+
+    result = {}
+    current_key=None
+    for link in meta_data.find_all('p'):
+        #print(link.text.strip())
+        current_key = None
+        for line in link.text.splitlines():
+            line = line.strip()  # Remove leading and trailing whitespace
+            if ':' in line:  # If the line contains a colon, it's a new key
+                current_key, value = map(str.strip, line.split(':', 1))
+                # Add the key with the value if the value is not empty
+                if value:
+                    result[current_key] = value
+                else:
+                    result[current_key] = ""  # Placeholder for now
+            elif current_key:  # If there's no colon but we have a current key, it's the value
+                result[current_key] = result[current_key] + line  # Append the value
+    #print(result)
+    # Parse born value to get the year, month, and day
+
+    born = result.get("Born")
+    space_split = born.split()
+    month = space_split[0]
+    month_num = list(calendar.month_name).index(month)
+    day = space_split[1][:-1]  
+    year = space_split[2][:-2]
+    city = space_split[3][:-1]
+    state = space_split[4]
+    print(f'{player_name} was born on {month_num}/{day}/{year} in {city}, {state}')
+    # Get highschool and state location
+    highschool = result.get("High School")
+    highschool = highschool.split("(")
+    highschool_name = highschool[0].strip()
+    highschool_state = highschool[1][:-1]
+    print(f'{player_name} went to {highschool_name} in {highschool_state}')
+
+    # Get Weighted Career AV
+    career_AV = result.get("Weighted Career AV (100-95-...)", "0 0").split(" ")[0]
+    print(f'{player_name} has a weighted career AV of {career_AV}')
+
+    # Get Career start year
+    draft = result.get("Draft", "0000")
+    match = re.search(r'\b\d{4}\b', draft)
+    if match:
+        draft_year = int(match.group())
+        print(f'{player_name} was drafted in {draft_year}')
+    if draft_year == year and draft_year != "0000":
         return True
+    else:
+        combine_data = soup.find(id = "tfooter_combine")
+        combine_data = combine_data.find_all("th")
+        for data in combine_data:
+            print(data)
     return False
 
 
@@ -41,7 +91,7 @@ def get_player_career_length(year,player_name):
         search_name = player_name.split() # Split the player name for the URL
         if len(search_name[-1]) < 4:
             search_name[-1] = search_name[-1] + "x"*(4-len(search_name[-1]))
-
+        isPlayerCorrect = False
         url = f"{stem}{search_name[-1][0]}/{search_name[-1][:4]}{search_name[0][:2]}00.htm"
         if search_name[0] == "Amon-Ra":
             url = f"{stem}{search_name[-1][0]}/{search_name[-1][:4]}Stxx00.htm"
@@ -51,8 +101,9 @@ def get_player_career_length(year,player_name):
             url = f"{stem}{search_name[-1][0]}/{search_name[-1][:4]}{search_name[0][0]}{search_name[0][2]}00.htm" #all the (A-Z). did not have a number different than 00
             #response = requests.get(None)                                                                        #so we can check it only once
             if checkedNames.get(url) == False:
-                response = requests.get(url,headers=headers)
-                #response = requests.get(stem+"404")
+                #check if data is correct via combine year
+                is 
+                print("Is the player's combine year the same as in the url? ", check_playerurl_with_year(url, year))                #response = requests.get(stem+"404")
                 checkedNames[url] = True
                 sleep(4) # Wait 4 seconds between requests
             elif response.status_code == 404 or checkedNames.get(url) == False: 
@@ -60,16 +111,21 @@ def get_player_career_length(year,player_name):
                checkedNames[url] = True
 
         print(url)
+
         #check if url is visited already
         if url not in checkedNames:
-            response = requests.get(url, headers=headers)
+            #check if data is correct via combine year, if true, return soup
+            
+            print("Is the player's combine year the same as in the url? ", check_playerurl_with_year(url, year))
             #response = requests.get(stem+"404")
             checkedNames[url] = True
             print("Novel URL")
         else:
             #response = requests.get(None)
+            #Url has been visited, so we need to increase the number after the name
             response = requests.get(stem+"404")
             print("Used URL")
+        
         checkOtherNumbers = 0
         """If the player's URL doesn't exist, try other numbers"""
         #check if players url matches the year in the csv, if not, then the url is wrong
@@ -79,7 +135,8 @@ def get_player_career_length(year,player_name):
             sleep(4) # Wait 4 seconds between requests
             newurl = url.replace("00", newNum)
             if checkedNames.get(newurl) == False:
-                response = requests.get(newurl, headers=headers)
+                #check if data is correct via combine year, if true, return soup
+                print("Is the player's combine year the same as in the url? ", check_playerurl_with_year(url, year))
                 #response = requests.get(stem+"404")
                 checkedNames[newurl] = True
             if checkOtherNumbers > 99:
@@ -96,7 +153,6 @@ def get_player_career_length(year,player_name):
         #print(soup.find(id = ["meta"])) #_class = "stats_pullout"))
 
         #Get Meta Data that we dont already have ie High school and High school state,
-        i = 0 
         result = {}
         current_key=None
         for link in meta_data.find_all('p'):
@@ -122,8 +178,9 @@ def get_player_career_length(year,player_name):
         month_num = list(calendar.month_name).index(month)
         day = space_split[1][:-1]  
         year = space_split[2][:-2]
-        city = space_split[3][:-1]
-        state = space_split[4]
+        city_state = born.split(" in ")[1]
+        city, state = city_state.split(",")
+
         print(f'{player_name} was born on {month_num}/{day}/{year} in {city}, {state}')
         # Get highschool and state location
         highschool = result.get("High School")
@@ -184,7 +241,7 @@ def get_player_career_length(year,player_name):
 
 # Add career length to your dataset
 
-player_name = "Brian Westbrook"
-year = 2002
+player_name = "Jonathan Adams"
+year = 2021
 career_dict = get_player_career_length(year, player_name)
 print(player_name+": ", career_dict)
