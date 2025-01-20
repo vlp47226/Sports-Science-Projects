@@ -2,6 +2,7 @@ import calendar
 import re
 import stat
 from time import sleep
+from turtle import pen
 from urllib import response
 import pandas as pd
 import requests
@@ -14,7 +15,7 @@ stem = "https://www.pro-football-reference.com/players/"
 headers = {'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/55.0.2883.87 Safari/537.36'}
 checkedNames = {}
 
-def check_playerurl_with_year(url, year):
+def check_playerurl_with_year(url, year_drafted):
     '''
         Check player combine year from csv to:
         1) draft year in their bio
@@ -25,7 +26,7 @@ def check_playerurl_with_year(url, year):
     if response.status_code == 404:
         return False
     soup = BeautifulSoup(response.content, 'html.parser')
-    # check
+    # check draft year in meta
     meta_data = soup.find(id = "meta")
 
     result = {}
@@ -46,15 +47,15 @@ def check_playerurl_with_year(url, year):
                 result[current_key] = result[current_key] + line  # Append the value
     #print(result)
     # Parse born value to get the year, month, and day
-
     born = result.get("Born")
     space_split = born.split()
     month = space_split[0]
     month_num = list(calendar.month_name).index(month)
     day = space_split[1][:-1]  
     year = space_split[2][:-2]
-    city = space_split[3][:-1]
-    state = space_split[4]
+    print(born.split("in"))
+    city_state = born.split("in")[1]
+    city, state = city_state.split(",")
     print(f'{player_name} was born on {month_num}/{day}/{year} in {city}, {state}')
     # Get highschool and state location
     highschool = result.get("High School")
@@ -73,13 +74,20 @@ def check_playerurl_with_year(url, year):
     if match:
         draft_year = int(match.group())
         print(f'{player_name} was drafted in {draft_year}')
-    if draft_year == year and draft_year != "0000":
+    print(draft_year)
+    print(year_drafted)
+    if draft_year != year_drafted and draft_year != "0000":
         return True
     else:
-        combine_data = soup.find(id = "tfooter_combine")
-        combine_data = combine_data.find_all("th")
-        for data in combine_data:
-            print(data)
+        combine_data = soup.find(id = "all_combine")
+        print(combine_data)
+        if(combine_data):
+            combine_data = combine_data.find(id="div_combine")
+            for data in combine_data:
+                print(data)
+        else:
+            print("No combine data")
+            return False
     return False
 
 
@@ -102,7 +110,6 @@ def get_player_career_length(year,player_name):
             #response = requests.get(None)                                                                        #so we can check it only once
             if checkedNames.get(url) == False:
                 #check if data is correct via combine year
-                is 
                 print("Is the player's combine year the same as in the url? ", check_playerurl_with_year(url, year))                #response = requests.get(stem+"404")
                 checkedNames[url] = True
                 sleep(4) # Wait 4 seconds between requests
@@ -241,7 +248,7 @@ def get_player_career_length(year,player_name):
 
 # Add career length to your dataset
 
-player_name = "Jonathan Adams"
-year = 2021
+player_name = "Shaquill Griffin"
+year = 2017
 career_dict = get_player_career_length(year, player_name)
 print(player_name+": ", career_dict)
